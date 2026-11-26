@@ -196,8 +196,38 @@
   body.isIntro .chip{opacity:0}
   .chip{transition:opacity .5s}
 </style>
+<script>(function(){try{if(localStorage.getItem('mt_ok')==='26ab2db501bc0d49')return}catch(e){}document.documentElement.classList.add('locked')})();</script>
+<style>
+  html.locked body>*:not(#gate){visibility:hidden!important}
+  #gate{display:none}
+  html.locked #gate{display:grid;position:fixed;inset:0;z-index:999;place-items:center;background:#1F1F1F;font-family:'Inter',system-ui,sans-serif;color:#fff}
+  #gate form{display:flex;flex-direction:column;align-items:center;gap:18px;width:min(320px,86vw)}
+  #gate .t1{font-size:15px;letter-spacing:.34em;font-weight:700}
+  #gate .t2{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+  #gate input{width:100%;padding:15px 22px;border-radius:999px;border:1.5px solid rgba(255,255,255,.35);background:rgba(255,255,255,.06);color:#fff;font:400 16px 'Inter',sans-serif;text-align:center;outline:none}
+  #gate input:focus{border-color:#fff}
+  #gate button{width:100%;padding:14px;border:0;border-radius:999px;background:#fff;color:#1E2A33;font:600 13px 'Inter',sans-serif;letter-spacing:.14em;text-transform:uppercase;cursor:pointer}
+  #gate .err{font-size:13px;color:#E8634C;min-height:18px}
+  #gate.shake form{animation:gsh .4s}
+  @keyframes gsh{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+</style>
 </head>
 <body>
+<div id="gate"><form id="gForm" autocomplete="off">
+  <div class="t1">MINI</div><div class="t2">MINI MORE Thrills · Proposal</div>
+  <input id="gPw" type="password" placeholder="Password" aria-label="Password" autofocus>
+  <button type="submit">Enter</button><div class="err" id="gErr"></div>
+</form></div>
+<script>(function(){
+  var H='26ab2db501bc0d49b265533fc341d7f24432f448a410b7d3807bdc482e6271a6';
+  async function sha(s){var b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(function(x){return x.toString(16).padStart(2,'0')}).join('')}
+  document.getElementById('gForm').addEventListener('submit',async function(e){e.preventDefault();
+    var v=document.getElementById('gPw').value.trim(), g=document.getElementById('gate');
+    if(await sha(v)===H){try{localStorage.setItem('mt_ok',H.slice(0,16))}catch(_){} document.documentElement.classList.remove('locked'); dispatchEvent(new Event('resize'));}
+    else{document.getElementById('gErr').textContent='Wrong password';g.classList.remove('shake');void g.offsetWidth;g.classList.add('shake')}
+  });
+})();</script>
+
 <div id="glows"></div><div id="grain"></div>
 <div id="glow" class="fadeIn"></div>
 <div id="dim"></div>
