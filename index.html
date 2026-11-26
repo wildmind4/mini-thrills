@@ -598,6 +598,8 @@ let acc=0,last=0;
 addEventListener('wheel',e=>{e.preventDefault();if(year||open)return;userAct();const now=performance.now();acc+=e.deltaY;
   if(Math.abs(acc)>40&&now-last>DUR*0.7){step(Math.sign(acc));acc=0;last=now}},{passive:false});
 addEventListener('keydown',e=>{
+  if(e.target&&e.target.closest&&e.target.closest('input,textarea,#gate'))return;
+  if(e.key==='Enter'&&!open&&!year){e.preventDefault();userAct();openFocus();return}
   if(open){ if(e.key==='Escape')closeFocus(); else if(e.key==='ArrowLeft'){e.preventDefault();slideBy(-1)} else if(e.key==='ArrowRight'){e.preventDefault();slideBy(1)}
     else if(['ArrowDown','PageDown'].includes(e.key)){e.preventDefault();step(1)} else if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();step(-1)} return; }
   if(year&&e.key!=='Escape')return;
@@ -617,6 +619,7 @@ function setPaused(p){ paused=p; $('pp').classList.toggle('off',p);
   $('pp').setAttribute('aria-label',p?'Play auto-play':'Pause auto-play'); $('ppLab').textContent=p?'Auto-play off':'Auto-play on';
   if(p){auto=false;setBar(0);clearTimeout(resumeT)} else if(!open&&!year){auto=true;hold0=performance.now()} }
 $('pp').onclick=()=>setPaused(!paused);
+setPaused(true); // auto-play stays off until someone presses play
 $('dAll').onclick=()=>{ if(open){closeFocus();setTimeout(()=>{userAct();setYear(true);$('dAll').classList.add('on')},500);return} userAct(); setYear(!year); $('dAll').classList.toggle('on',year); };
 $('dock').addEventListener('pointerdown',e=>e.stopPropagation());
 
