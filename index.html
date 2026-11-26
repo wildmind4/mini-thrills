@@ -624,10 +624,17 @@ $('dock').addEventListener('pointerdown',e=>e.stopPropagation());
 let slIdx=0, slN=1;
 function buildSlides(i){
   const e=EVENTS[i], list=e.imgs||[e.img]; slN=list.length; slIdx=0;
-  $('slTrack').innerHTML=list.map((u,k)=>`<div class="sl ${k?'':'on'}" style="background-image:url('${u}')"></div>`).join('');
+  $('slTrack').innerHTML=list.map((u,k)=>`<div class="sl ${k?'':'on'}" ${SHOW_TOP.has(u)?'data-top="1"':''} style="background-image:url('${u}')"></div>`).join('');
+  applyTop();
   $('sDots').innerHTML=list.map((u,k)=>`<i class="${k?'':'on'}" data-k="${k}"></i>`).join('');
   $('slides').classList.toggle('single',slN<2);
   $('sDots').querySelectorAll('i').forEach(d=>d.onclick=ev=>{ev.stopPropagation();slideTo(+d.dataset.k)});
+}
+// photos whose subject sits at the very top (e.g. the cliffs): in the big view, push them down so the top stays on screen
+const SHOW_TOP=new Set(['img/n_deck.jpg']);
+function applyTop(){
+  const sc=RTF/RW, shift=Math.max(0,RTF-cy)/sc;
+  $('slTrack').querySelectorAll('.sl[data-top]').forEach(el=>el.style.backgroundPosition=`50% ${shift.toFixed(1)}px`);
 }
 function slideTo(k){ slIdx=(k+slN)%slN;
   $('slTrack').querySelectorAll('.sl').forEach((el,j)=>el.classList.toggle('on',j===slIdx));
@@ -641,6 +648,7 @@ function placeFocus(){
   sl.querySelector('.sarr.l').style.left=fx(L+RTF*0.16); sl.querySelector('.sarr.r').style.left=fx(Math.min(W-90,cxF+RTF*0.6)); sl.querySelector('.sarr.r').style.right='auto';
   sl.querySelector('.sarr.l').style.top=sl.querySelector('.sarr.r').style.top=fy(H*0.42);
   const dt=$('sDots'); dt.style.top=fy(34); dt.style.bottom='auto'; dt.style.left=fx((Math.max(L,0)+W)/2);
+  applyTop();
   $('fshade').style.clipPath=`circle(${RTF}px at ${cxF}px ${cy}px)`;
   const sd=$('side'), SL=Math.max(L+RTF*0.32, L+120);
   if(mobile){ sd.style.top=(cy+RTF*0.25)+'px'; }
