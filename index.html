@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MINI MORE Thrills</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#1C72A6;--fg:#fff;--dim:rgba(255,255,255,.62);--c:#E4002B;--sans:'Inter',system-ui,sans-serif}
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{height:100%;background:#1F1F1F;color:var(--fg);font-family:var(--sans);overflow:hidden;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;color:inherit}
+  #stage{position:fixed;inset:0;touch-action:none;user-select:none;-webkit-user-select:none}
+  .el{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform,opacity}
+
+  /* ambient light behind the display — changes with the mode */
+  #glow{position:fixed;border-radius:50%;pointer-events:none;background-color:var(--c);
+    -webkit-mask:radial-gradient(closest-side,rgba(0,0,0,.32),rgba(0,0,0,.1) 55%,transparent);
+            mask:radial-gradient(closest-side,rgba(0,0,0,.32),rgba(0,0,0,.1) 55%,transparent);
+    transition:background-color .9s ease, opacity 1s ease}
+
+  /* dial */
+  .tick{height:1.5px;background:#fff;border-radius:1px;transform-origin:0 50%}
+  .month{font-size:var(--mfs);letter-spacing:.08em;text-transform:uppercase;white-space:nowrap;cursor:pointer}
+
+  /* year ring */
+  #yring{position:fixed;border-radius:50%;border:1px solid rgba(255,255,255,.28);pointer-events:none;
+    -webkit-mask:linear-gradient(to right,#000 calc(30% + var(--ym,0)*70%),transparent calc(50% + var(--ym,0)*50%));
+            mask:linear-gradient(to right,#000 calc(30% + var(--ym,0)*70%),transparent calc(50% + var(--ym,0)*50%))}
+  .yr{font-size:var(--yfs);letter-spacing:.12em;font-weight:500;white-space:nowrap;cursor:pointer;font-variant-numeric:tabular-nums}
+  .ydot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.45);margin:-3.5px 0 0 -3.5px}
+  .ydiv{width:14px;height:1px;background:rgba(255,255,255,.55);transform-origin:0 50%}
+  /* event bubbles */
+  .item{cursor:pointer}
+  .b{width:var(--bd);height:var(--bd);border-radius:50%;transform:translate(-50%,-50%);position:relative;
+     background:var(--kv) center/cover;box-shadow:0 0 0 calc(var(--bd)*.045) var(--mc) inset,0 0 0 calc(var(--bd)*.075) rgba(255,255,255,.9) inset,0 8px 20px rgba(0,0,0,.1)}
+  .b::after{content:attr(data-n);position:absolute;inset:0;display:grid;place-items:center;font-weight:600;
+     font-size:calc(var(--bd)*.2);letter-spacing:.04em;text-transform:uppercase;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.25)}
+  .b.has-img::after{content:none}
+  .b .ring{position:absolute;inset:calc(var(--bd)*-.11);border-radius:50%;border:2px solid var(--mc);opacity:var(--ro,0)}
+
+  /* the round display */
+  #display{position:fixed;border-radius:50%;z-index:3;overflow:hidden;
+    box-shadow:0 0 0 calc(var(--rw)*.035) #0b0d10, 0 0 0 calc(var(--rw)*.043) #2b3138, 0 30px 80px rgba(0,25,50,.4)}
+  .kv{position:absolute;inset:0;background:var(--kv) center/cover;transition:opacity .7s ease}
+  .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(10,45,75,0) 30%,rgba(10,45,75,.72) 56%,rgba(10,45,75,.94) 72%)}
+  .d-in{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;text-align:center;padding:0 14% 17%}
+  .chip{position:absolute;top:11%;left:50%;transform:translateX(-50%);display:flex;align-items:center;gap:8px;
+    font-size:calc(var(--rw)*.042);letter-spacing:.14em;text-transform:uppercase;font-weight:600;
+    padding:.7em 1.15em;border-radius:999px;background:rgba(255,255,255,.75);color:#111;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);white-space:nowrap}
+  .chip i{width:.75em;height:.75em;border-radius:50%;background:var(--c);box-shadow:0 0 10px var(--c);transition:background .6s}
+  .kvlabel{position:absolute;top:34%;left:50%;transform:translateX(-50%);font-size:calc(var(--rw)*.036);letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.4)}
+  .d-eye{font-size:calc(var(--rw)*.046);letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.72)}
+  .d-title{font-size:calc(var(--rw)*.15);line-height:.98;letter-spacing:-.035em;font-weight:600;margin:.28em 0 .32em}
+  .d-line{font-size:calc(var(--rw)*.056);line-height:1.35;color:rgba(255,255,255,.82);font-weight:300;max-width:24ch}
+  #prog{position:fixed;z-index:4;pointer-events:none;overflow:visible}
+  #prog circle{fill:none;stroke-linecap:round}
+
+  /* detail column */
+  #side{position:fixed;z-index:4}
+  .s-block{margin-bottom:34px}
+  .s-k{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;display:flex;align-items:center;gap:10px}
+  .s-k::before{content:"";width:18px;height:1.5px;background:var(--c);transition:background .6s}
+  .s-v{font-size:clamp(14px,1.12vw,17px);line-height:1.55;font-weight:300;color:rgba(255,255,255,.86)}
+  .s-row{display:flex;gap:44px}
+  .s-row .s-v{font-weight:400;color:#fff}
+  .nav{display:flex;align-items:center;gap:12px;margin-top:8px}
+  .rb{width:46px;height:46px;border-radius:50%;border:1.5px solid rgba(255,255,255,.7);background:transparent;cursor:pointer;display:grid;place-items:center;font-size:15px;transition:background .2s,color .2s}
+  .rb:hover{background:#fff;color:#0F4F7A}
+  .count{white-space:nowrap;font-size:12px;letter-spacing:.12em;color:var(--dim);margin-left:8px;font-variant-numeric:tabular-nums}
+  .swap{transition:opacity .36s cubic-bezier(.55,0,.1,1),transform .5s cubic-bezier(.55,0,.1,1)}
+  .swap.out{opacity:0;transform:translateY(12px)}
+
+  /* modes legend */
+  #modes{position:fixed;z-index:5;display:flex;gap:18px;flex-wrap:wrap}
+  #modes span{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.55);transition:color .4s}
+  #modes span i{width:8px;height:8px;border-radius:50%}
+  #modes span.on{color:#fff}
+
+  .corner{position:fixed;font-size:11px;letter-spacing:.08em;text-transform:uppercase;z-index:6;font-weight:500}
+  .tl{top:24px;left:28px;font-size:15px;letter-spacing:.34em;font-weight:700}
+  .tr{top:26px;right:28px}.bl{bottom:24px;left:28px}.br{bottom:24px;right:28px;color:var(--dim)}
+  #yearBtn{position:fixed;bottom:52px;right:28px;z-index:6;border:1.5px solid rgba(255,255,255,.6);background:rgba(255,255,255,.08);
+    border-radius:999px;padding:10px 20px;font-size:11px;letter-spacing:.14em;text-transform:uppercase;cursor:pointer;font-weight:500}
+  #yearBtn:hover{border-color:#fff}
+
+  /* start-up */
+  #boot{position:fixed;inset:0;z-index:20;pointer-events:none;display:grid;place-items:center}
+  #boot svg{position:absolute;overflow:visible}
+  .fadeIn{opacity:0;transition:opacity .9s ease}
+  body.ready .fadeIn{opacity:1}
+
+  @media (max-width:760px){
+    .bl,.br{display:none}
+    #side .s-row,#side .why{display:none}
+    #modes{display:none}
+    .s-block{margin-bottom:14px}
+  }
+  /* minimal label on the round screen so the picture reads; full text lives in the side column */
+  .shade{transition:opacity .6s}
+  body:not(.yv) .shade{opacity:0}
+  body:not(.yv) .d-eye, body:not(.yv) .d-line{display:none}
+  body:not(.yv) .d-in{padding-bottom:9%}
+  body:not(.yv) .d-title{font-size:calc(var(--rw)*.058);font-weight:600;letter-spacing:.02em;margin:0;
+    padding:.55em 1.1em;border-radius:999px;background:rgba(255,255,255,.78);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);color:#111}
+  .s-head{margin-bottom:34px}
+  .s-eye{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--c);font-weight:600;transition:color .6s}
+  .s-title{font-size:clamp(30px,2.8vw,44px);font-weight:600;letter-spacing:-.03em;line-height:1.02;margin:10px 0 8px}
+  .s-line{font-size:clamp(15px,1.2vw,18px);color:rgba(255,255,255,.72);font-weight:300}
+  /* auto-play control */
+  .rb svg{width:15px;height:15px;fill:currentColor}
+  #pp.off{background:#fff;color:#0F4F7A}
+  .pp-lab{white-space:nowrap;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-left:4px;min-width:96px}
+  #display{cursor:zoom-in}
+  /* focus view: darker backdrop, bigger screen, slideshow inside */
+  #dim{position:fixed;inset:0;z-index:2;background:rgba(4,20,36,.74);opacity:0;pointer-events:none;transition:opacity .6s ease}
+  body.open #dim{opacity:1;pointer-events:auto;cursor:zoom-out}
+  body.open #display{cursor:default}
+  body.open #prog,body.open #yearBtn,body.open #modes{opacity:0;pointer-events:none}
+  #modes{transition:opacity .4s}
+  body.yv #modes{opacity:0;pointer-events:none}
+  body.open .d-in{opacity:0}
+  #prog,#yearBtn,.d-in{transition:opacity .4s}
+  #slides{position:absolute;inset:0;z-index:2;opacity:0;transition:opacity .5s ease;pointer-events:none}
+  body.open #slides{opacity:1;pointer-events:auto}
+  .sl{position:absolute;inset:0;background:center/cover no-repeat;opacity:0;transform:scale(1.05);transition:opacity .7s ease,transform 1.2s cubic-bezier(.2,.7,.2,1)}
+  .sl.on{opacity:1;transform:scale(1)}
+  .sarr{position:absolute;top:50%;width:calc(var(--rw)*.15);height:calc(var(--rw)*.15);margin-top:calc(var(--rw)*-.075);border-radius:50%;border:0;cursor:pointer;
+    background:rgba(255,255,255,.88);color:#111;display:grid;place-items:center;font-size:calc(var(--rw)*.06);z-index:3}
+  .sarr.l{left:5%}.sarr.r{right:5%}
+  .sdots{position:absolute;left:50%;bottom:7%;transform:translateX(-50%);display:flex;gap:calc(var(--rw)*.022);z-index:3;
+    padding:calc(var(--rw)*.022) calc(var(--rw)*.04);border-radius:999px;background:rgba(0,0,0,.35)}
+  .sdots i{width:calc(var(--rw)*.026);height:calc(var(--rw)*.026);border-radius:50%;background:rgba(255,255,255,.45);cursor:pointer}
+  .sdots i.on{background:#fff}
+  .single .sarr,.single .sdots{display:none}
+  #fClose{position:fixed;top:20px;right:24px;z-index:8;width:46px;height:46px;border-radius:50%;border:1.5px solid rgba(255,255,255,.7);background:transparent;color:#fff;
+    font-size:20px;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .4s}
+  body.open #fClose{opacity:1;pointer-events:auto}
+  body.open .tr{opacity:0}
+  #side{transition:left .75s cubic-bezier(.65,0,.25,1),top .75s cubic-bezier(.65,0,.25,1),opacity .5s}
+  /* MINI-style home bar, under the round screen */
+  .dock{position:fixed;left:0;top:0;z-index:6;display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;
+    background:rgba(255,255,255,.95);box-shadow:0 10px 30px rgba(0,25,50,.25);transform:translate(-50%,0);transition:opacity .4s}
+  .dock button{width:54px;height:42px;border:0;border-radius:999px;background:transparent;color:#1E2A33;cursor:pointer;display:grid;place-items:center;transition:background .2s,color .2s}
+  .dock button:hover{background:rgba(30,42,51,.08)}
+  .dock svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+  .dock svg .f{fill:currentColor;stroke:none}
+  .dock button.on{background:#0F5E8F;color:#fff}
+  #pp.off{background:#1E2A33;color:#fff}
+  body.open .dock{opacity:0!important;pointer-events:none}
+  body:not(.yv) .d-in{padding-bottom:9%}
+  .sdots{bottom:7%}
+  /* slide-style backdrop: charcoal, film grain, a soft category glow from the left */
+  .cglow{position:fixed;inset:0;pointer-events:none;opacity:0;transition:opacity 1.1s ease;will-change:opacity}
+  .cglow.on{opacity:1}
+  #grain{position:fixed;inset:0;pointer-events:none;opacity:.5;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")}
+  /* big focus view */
+  body.open #stage{z-index:3}
+  body.open #yring{z-index:3}
+  #display,#glow{transition:none!important}
+  #dim{background:rgba(10,10,12,.42)!important}
+  #fshade{position:fixed;inset:0;z-index:4;pointer-events:none;opacity:0;transition:opacity .6s ease .25s;
+    background:linear-gradient(180deg,rgba(0,0,0,0) 35%,rgba(0,0,0,.55) 58%,rgba(0,0,0,.9) 80%,#000 100%)}
+  body.open #fshade{opacity:1}
+  body.open #side{z-index:5;transition:opacity .5s .3s}
+  body.open #sWrap{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);column-gap:56px;align-items:end}
+  body.open .s-head{grid-column:1;grid-row:1 / span 3;margin:0}
+  body.open .s-block{grid-column:2;margin-bottom:22px}
+  body.open .s-title{font-size:clamp(34px,3.3vw,56px)}
+  body.open .sarr{width:calc(var(--rw)*.06);height:calc(var(--rw)*.06);margin:calc(var(--rw)*-.03) 0 0 calc(var(--rw)*-.03);font-size:calc(var(--rw)*.03)}
+  body.open .sdots{transform:translateX(-50%) scale(.45)}
+  body:not(.open) .sarr.l{left:5%!important;top:50%!important}
+  body:not(.open) .sarr.r{left:auto!important;right:5%!important;top:50%!important}
+
+  /* section intro circles */
+  .b.intro{background:radial-gradient(circle,var(--mc) 0 30%,transparent 31% 46%,var(--mc) 47% 52%,transparent 53%),#151517;
+     box-shadow:0 0 0 calc(var(--bd)*.045) var(--mc) inset,0 8px 20px rgba(0,0,0,.2)}
+  .b.intro::after{content:none}
+  .ikv{position:absolute;inset:0;opacity:0;transition:opacity .7s ease;z-index:1;
+     background:radial-gradient(circle at 50% 40%,var(--c) 0,var(--cg) 55%,#111 100%)}
+  .ikv::before{content:"";position:absolute;inset:0;border-radius:50%;
+     background:repeating-radial-gradient(circle at 50% 50%,rgba(255,255,255,0) 0 calc(var(--rw)*.16),rgba(255,255,255,.14) calc(var(--rw)*.16 + 1px) calc(var(--rw)*.16 + 2px));
+     animation:ipulse 6s linear infinite}
+  @keyframes ipulse{from{transform:scale(1)}to{transform:scale(1.32)}}
+  body.isIntro .ikv{opacity:1}
+  body.isIntro .d-in{z-index:2;justify-content:center;padding:0 12%}
+  body.isIntro .shade,body.isIntro .kvlabel{opacity:0}
+  body.isIntro .d-eye,body.isIntro .d-line{display:block!important}
+  body.isIntro .d-eye{color:rgba(255,255,255,.85)}
+  body.isIntro .d-title{background:none!important;backdrop-filter:none!important;-webkit-backdrop-filter:none!important;color:#fff!important;padding:0!important;
+     font-size:calc(var(--rw)*.15)!important;letter-spacing:-.035em!important;line-height:.98;margin:.25em 0 .3em!important;text-shadow:0 2px 24px rgba(0,0,0,.25)}
+  body.isIntro .d-line{color:rgba(255,255,255,.9);font-weight:400}
+  body.isIntro #display{cursor:default}
+  body.isIntro .chip{opacity:0}
+  .chip{transition:opacity .5s}
+</style>
+</head>
+<body>
+<div id="glows"></div><div id="grain"></div>
+<div id="glow" class="fadeIn"></div>
+<div id="dim"></div>
+<div id="fshade"></div>
+<button id="fClose" aria-label="Close">✕</button>
+<div id="yring" class="fadeIn"></div>
+<div id="stage"></div>
+
+<div id="display">
+  <div class="kv" id="kvA"></div><div class="kv" id="kvB" style="opacity:0"></div>
+  <div class="shade"></div><div class="ikv"></div>
+  <div id="slides"><div id="slTrack"></div>
+    <button class="sarr l" id="sPrev" aria-label="Previous photo">‹</button><button class="sarr r" id="sNext" aria-label="Next photo">›</button>
+    <div class="sdots" id="sDots"></div></div>
+  <div class="chip" style="z-index:4"><i></i><span id="dMode"></span></div>
+  <div class="kvlabel" id="kvLabel">Key visual</div>
+  <div class="d-in swap" id="dWrap">
+    <div class="d-eye" id="dEye"></div>
+    <div class="d-title" id="dTitle"></div>
+    <div class="d-line" id="dLine"></div>
+  </div>
+</div>
+<svg id="prog"><circle id="pTrack"/><circle id="pBar"/></svg>
+
+<div id="side" class="fadeIn">
+  <div class="swap" id="sWrap">
+    <div class="s-head"><div class="s-eye" id="sEye"></div><div class="s-title" id="sTitle"></div><div class="s-line" id="sLine"></div></div>
+    <div class="s-block"><div class="s-k">What happens</div><div class="s-v" id="sWhat"></div></div>
+    <div class="s-block why"><div class="s-k">Why MINI</div><div class="s-v" id="sWhy"></div></div>
+    <div class="s-block forM"><div class="s-k">For MINI MORE</div><div class="s-v" id="sFor"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modes" class="fadeIn"></div>
+<div class="corner tl fadeIn">MINI</div>
+<div class="corner tr fadeIn">MINI MORE Thrills</div>
+<div class="corner bl fadeIn" id="cbl">Brigada × MINI</div>
+<div class="corner br fadeIn">Proposal · Draft</div>
+<button id="yearBtn" style="display:none">See all thrills</button>
+<div class="dock fadeIn" id="dock">
+  <button id="prev" aria-label="Previous thrill"><svg viewBox="0 0 24 24"><path d="M12 19V5M6 11l6-6 6 6"/></svg></button>
+  <button id="pp" aria-label="Pause auto-play"><svg viewBox="0 0 24 24" id="ppIcon"><rect x="6.5" y="5" width="3.6" height="14" rx="1.2" class="f"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2" class="f"/></svg></button>
+  <button id="dAll" aria-label="See all thrills"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.6" class="f"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6" class="f"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6" class="f"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6" class="f"/></svg></button>
+  <button id="next" aria-label="Next thrill"><svg viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></svg></button>
+</div>
+<span id="count" hidden></span><span id="ppLab" hidden></span>
+<div id="boot"><svg id="bootSvg"><circle id="bootRing" fill="none" stroke="#fff" stroke-width="1.5"/></svg></div>
+
+<script>
+/* ==========================================================
+   EDIT HERE
+   MODES: the Experience-Mode look each event takes on.
+   EVENTS: one entry per event, in calendar order.
+     img: "" → placeholder in the mode colours; put an image path/data URI to use a photo
+   ========================================================== */
+const MODES = {
+  "Weekly thrill":     {c:"#7B86FF", g:"#3B4BC4", cad:"Every week",        kv:"radial-gradient(circle at 40% 30%,#fff1b8 0,#f5b400 45%,#ffe08a 80%,#fff8e0 100%)"},
+  "Periodic thrill": {c:"#E8634C", g:"#B4402F", cad:"A few times a year",  kv:"radial-gradient(circle at 40% 30%,#ffb3a8 0,#e4002b 45%,#ff9aa6 80%,#ffe3e6 100%)"},
+  "Always-on thrill":  {c:"#8FD9BC", g:"#5C9C84", cad:"All year round",      kv:"radial-gradient(circle at 40% 30%,#c8fbe0 0,#1fb87a 45%,#9fe8c3 80%,#e9fbf1 100%)"},
+  "The Big Thrill":  {c:"#E6E24E", g:"#B9BA30", cad:"Once a year",         kv:"radial-gradient(circle at 40% 30%,#dfe6ff 0,#3d6bff 45%,#a9bcff 80%,#eef2ff 100%)"},
+};
+const EVENTS = [
+  {year:"Weekly", month:"Weekly thrill", mode:"Weekly thrill", intro:true, tag:"", img:"", city:"Layer 01 · Every week",
+   title:"Weekly thrill", line:"Small drops that keep members coming back.",
+   what:"Every week something new opens on MINI MORE: limited collabs, car scents, track-day seats and sold-out tickets. Small, fast, first come, first served.", why:"", forM:""},
+  {year:"Weekly", month:"Go play", mode:"Weekly thrill", tag:"Play", img:"img/n_play.jpg", city:"Weekly thrill · Every week",
+   title:"Go play", line:"Something small opens every day. What you open, you collect.",
+   what:"Every day, something small opens on MINI MORE: a colour of the day, a one-minute hack, a hidden spot in your city, a track of the day, a member in the spotlight. What you open, you keep: by December it is your palette, your map, your playlist.",
+   why:"Small everyday joys, like the go-kart feeling on a short drive.", forM:"The reason to log in more often, without a single point to count."},
+  {year:"Weekly", month:"Collabs", mode:"Weekly thrill", tag:"Collab", img:"img/n_jacket.jpg", imgs:["img/n_jacket.jpg","img/n_merch1.jpg","img/n_merch.jpg"], city:"Weekly thrill · Every week",
+   title:"The MINI mini collabs", line:"Limited collabs, dropped on a Monday, gone by Friday.",
+   what:"Limited collabs with brands like Rains and Arte, and artists like BLR. Small runs, SNKRS-style: dropped on a Monday, gone by Friday.",
+   why:"Every MINI is a little different. So is every drop.", forM:"A reason to open MINI MORE every Monday."},
+  {year:"Weekly", month:"Scents", mode:"Weekly thrill", tag:"Scents", img:"img/n_scent.jpg", city:"Weekly thrill · Every week",
+   title:"The MINI scents", line:"Limited-edition car scents, made with cosmetic brands.",
+   what:"Limited-edition car scents, made with cosmetic brands.",
+   why:"Your MINI is a second living room. It can smell like one.", forM:"Small, giftable and collectable."},
+  {year:"Weekly", month:"Track days", mode:"Weekly thrill", tag:"Track", img:"img/n_race2.jpg", city:"Weekly thrill · Every week",
+   title:"Track days with Petrolhead", line:"A handful of seats for MINI track days.",
+   what:"A handful of seats for MINI track days with Petrolhead, with racing driver and MINI ambassador Sam Dejonghe as your instructor for a few laps.",
+   why:"The go-kart feeling, for real.", forM:"The drop people set an alarm for."},
+  {year:"Weekly", month:"Sold-out", mode:"Weekly thrill", tag:"Tickets", img:"img/n_tickets2.jpg", city:"Weekly thrill · Every week",
+   title:"Sold-out nights", line:"Tickets for sold-out concerts, shows and nights.",
+   what:"Tickets for sold-out concerts, shows and nights, through MINI's own partners. A few pairs per drop, first come, first served.",
+   why:"A MINI gets you places. So does being a member.", forM:"Proof that membership opens doors money can’t."},
+  {year:"Periodic", month:"Periodic thrill", mode:"Periodic thrill", intro:true, tag:"", img:"", city:"Layer 02 · A few times a year",
+   title:"Periodic thrill", line:"Bigger moments that bring members together.",
+   what:"A few times a year, MINI MORE turns the city into a stage: Nightpass weeks, drive-on catwalks and a design contest only members can enter.", why:"", forM:""},
+  {year:"Periodic", month:"Nightpass", mode:"Periodic thrill", tag:"Night", img:"img/n_scan2.jpg", imgs:["img/n_scan2.jpg","img/n_night2.jpg","img/n_night.jpg"], city:"Periodic thrill · A few times a year",
+   title:"MINI Nightpass", line:"Different cities, a new night every evening.",
+   what:"Nightpass Week: different cities, a new night every evening: rooftops, late-night kitchens, expos and workshops that open just for MINI MORE members. Your number plate opens the car park.",
+   why:"A MINI is built for the city.", forM:"Members pay €45 for an evening worth three times that; partners carry the rest."},
+  {year:"Periodic", month:"Catwalk", mode:"Periodic thrill", tag:"Catwalk", img:"img/n_catwalk2.jpg", city:"Periodic thrill · A few times a year",
+   title:"The MINI Catwalk", line:"Five city car parks become drive-on catwalks.",
+   what:"For two weeks, five city car parks become drive-on catwalks. Your number plate opens the gate, you drive the runway and leave with your own fashion shot.",
+   why:"MINI owners can't stop looking at their car.", forM:"Content made by members, for members."},
+  {year:"Periodic", month:"Design", mode:"Periodic thrill", tag:"Design", img:"img/n_wrap.jpg", city:"Periodic thrill · A few times a year",
+   title:"The MINI design contest", line:"Members design a wrap for their own MINI.",
+   what:"Members design a wrap for their own MINI. A Belgian designer sits on the jury, and the winning design hits the road.",
+   why:"Individuality is in MINI’s DNA.", forM:"Only members can enter and vote."},
+  {year:"Always-on", month:"Always-on thrill", mode:"Always-on thrill", intro:true, tag:"", img:"", city:"Layer 03 · All year round",
+   title:"Always-on thrill", line:"Perks that work every single day.",
+   what:"Access to booked-out places, MINI-only parking, member fares and hotel rates. Always there, every time you open MINI MORE.", why:"", forM:""},
+  {year:"Always-on", month:"Access", mode:"Always-on thrill", tag:"Access", img:"img/n_nightres.jpg", imgs:["img/n_nightres.jpg","img/n_access.jpg"], city:"Always-on thrill · All year round",
+   title:"The MINI access", line:"Things money can't buy.",
+   what:"MINI gets you into over-booked hotspots in your city: concerts, restaurants, live venues and movies. Things money can't buy.",
+   why:"A MINI is a city car. It should open the city.", forM:"Paid for by partners who want new guests."},
+  {year:"Always-on", month:"Parking", mode:"Always-on thrill", tag:"Park", img:"img/n_parking4.jpg", city:"Always-on thrill · All year round",
+   title:"MINI Only Parking", line:"Your number plate opens the barrier.",
+   what:"MINI-only spots with car-park partners like Interparking. Your number plate opens the barrier: no ticket, no app.",
+   why:"Small car, best spot.", forM:"Your number plate becomes your membership card, every day."},
+  {year:"Always-on", month:"Fly", mode:"Always-on thrill", tag:"Fly", img:"img/n_fly.jpg", city:"Always-on thrill · All year round",
+   title:"Brussels Airlines member fares", line:"Member fares all year, plus early access to flash sales.",
+   what:"Member fares all year, plus early access to Brussels Airlines flash sales.",
+   why:"Travel is part of the MINI MORE promise.", forM:"A perk worth logging in for."},
+  {year:"Always-on", month:"Hotels", mode:"Always-on thrill", tag:"Stay", img:"img/n_hotel2.jpg", city:"Always-on thrill · All year round",
+   title:"MINI MORE hotel rates", line:"Member rates, with a MINI-only parking spot waiting.",
+   what:"Member rates at a hotel partner, in the city and at the coast, with a MINI-only parking spot waiting.",
+   why:"Weekends away are where a MINI shines.", forM:"A year-round advantage, fully paid for by the partner."},
+  {year:"Always-on", month:"Friend", mode:"Always-on thrill", tag:"Friend", img:"img/n_friend3.jpg", city:"Always-on thrill · All year round",
+   title:"Bring a friend", line:"Invite a MINI-driving friend. Both get a perk.",
+   what:"Members invite a MINI-driving friend. When the friend registers, both get a perk.",
+   why:"MINI drivers find each other anyway.", forM:"Turns members into recruiters for the 15,206 drivers without an account."},
+  {year:"Big Thrill", month:"The Big Boat Thrill", mode:"The Big Thrill", intro:true, tag:"", img:"", city:"Layer 04 · Once a year",
+   title:"The Big Boat Thrill", line:"One day everyone talks about.",
+   what:"Once a year, MINI MORE plans one big shared moment for its members. Our case: 250 MINIs, one ferry, one day in the UK.", why:"", forM:""},
+  {year:"Big Thrill", month:"Coming home", mode:"The Big Thrill", tag:"Home", img:"img/n_home3.jpg", imgs:["img/n_home3.jpg","img/t26b.jpg"], city:"The Big Thrill · Once a year · Our case",
+   title:"It's coming home", line:"One ferry, 250 MINIs, one day in the UK.",
+   what:"One ferry, 250 MINIs, one day in the UK. Members cross the Channel with their own MINI, follow a roadbook to a secret spot in Kent and park their cars into a giant artwork, revealed by drone. A day on the water, with Offshore: every MINI on board helps bring drinkable water where it is missing.",
+   why:"", forM:""},
+  {year:"Big Thrill", month:"Crossing", mode:"The Big Thrill", tag:"01", img:"img/n_breakfast3.jpg", city:"The Big Thrill · 01",
+   title:"The crossing", line:"250 members board one ferry in Calais.",
+   what:"250 MINI MORE members board one ferry in Calais, each with their own MINI. An English brunch is served on board, and Offshore tells why water connects us all. The road trip starts the moment they drive off in Dover.",
+   why:"", forM:""},
+  {year:"Big Thrill", month:"Road trip", mode:"The Big Thrill", tag:"02", img:"img/n_road5.jpg", imgs:["img/n_road5.jpg","img/n_road2.jpg"], city:"The Big Thrill · 02",
+   title:"The English road trip", line:"Left side of the road. No GPS, no spoilers.",
+   what:"From Dover, the crews drive through the Kent countryside, on the left side of the road. No GPS, no spoilers: the co-pilot reads the roadbook, the driver follows. Nobody knows where the road ends until they get there.",
+   why:"", forM:""},
+  {year:"Big Thrill", month:"Big picture", mode:"The Big Thrill", tag:"03", img:"img/n_shape2.jpg", city:"The Big Thrill · 03",
+   title:"The big picture", line:"250 cars, one giant artwork.",
+   what:"At the secret spot, your number plate shows you your place. A drone then reveals what the 250 cars create together: a giant artwork designed with an artist. Every owner takes home a print.",
+   why:"", forM:""},
+  {year:"Big Thrill", month:"Ferry party", mode:"The Big Thrill", tag:"04", img:"img/n_shop.jpg", city:"The Big Thrill · 04",
+   title:"The party ends on the ferry", line:"One live DJ set for all 250 crews.",
+   what:"On the way back, a MINI pop-up shop sells pieces you can only get on this crossing. Every MINI tunes in to the same radio frequency: one live DJ set for all 250 crews, from the boarding queue in Dover to the drive-off in Calais.",
+   why:"", forM:""},
+  {year:"Big Thrill", month:"The print", mode:"The Big Thrill", tag:"05", img:"img/n_shape2.jpg", city:"The Big Thrill · 05",
+   title:"The big picture, at home", line:"Every owner takes home a print.",
+   what:"The giant artwork the 250 cars made together, designed with an artist and revealed by drone, doesn't stay in Kent. Every owner takes home a print of it: proof that their MINI was part of the picture.",
+   why:"", forM:""},
+];
+
+/* Motion (measured from the reference video) */
+const STEP_DEG = 17, DUR = 480, HOLD = 5500, TICKS = 4;
+
+/* ---------- build ---------- */
+const N=EVENTS.length, stage=document.getElementById('stage'), $=id=>document.getElementById(id);
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const labels=[],ticks=[],items=[];
+for(let i=0;i<N*TICKS;i++){ if(i%TICKS===0)continue;
+  const t=document.createElement('div'); t.className='el tick'; stage.appendChild(t); ticks.push({el:t,k:i/TICKS}); }
+EVENTS.forEach((e,i)=>{
+  const m=MODES[e.mode];
+  const l=document.createElement('div'); l.className='el month'; l.textContent=e.month;
+  l.onclick=()=>pick(i); stage.appendChild(l); labels.push({el:l,k:i});
+  const it=document.createElement('div'); it.className='el item';
+  it.innerHTML=`<div class="b ${e.img?'has-img':''} ${e.intro?'intro':''}" data-n="${e.tag}" style="--kv:${e.img?`url('${e.img}')`:m.kv};--mc:${m.c}"><span class="ring"></span></div>`;
+  it.onclick=()=>{ if(year){pick(i);return} userAct(); if(Math.round(to)!==i) goTo(i); if(!e.intro) openFocus(); }; stage.appendChild(it); items.push({el:it,k:i,ring:it.querySelector('.ring')});
+});
+const YEARS=[...new Set(EVENTS.map(e=>e.year))];
+const yEls=YEARS.map((y,yi)=>{
+  const l=document.createElement('div'); l.className='el yr'; l.textContent=y; l.onclick=()=>pick(EVENTS.findIndex(e=>e.year===y));
+  const d=document.createElement('div'); d.className='el ydot';
+  stage.appendChild(d); stage.appendChild(l);
+  const idx=EVENTS.map((e,i)=>e.year===y?i:-1).filter(i=>i>=0);
+  return {l,d,yi,mid:(idx[0]+idx[idx.length-1])/2,first:idx[0]};
+});
+const yDivs=YEARS.slice(1).map(()=>{const v=document.createElement('div');v.className='el ydiv';stage.appendChild(v);return v});
+const YSTEP=24;
+let yPos=0;
+Object.entries(MODES).forEach(([k,v])=>{const d=document.createElement('div');d.className='cglow';d.dataset.m=k;
+  d.style.background=`radial-gradient(ellipse 62vw 95vh at 6% 50%, ${v.g} 0%, ${v.g}d9 38%, ${v.g}55 62%, transparent 82%)`;
+  document.getElementById('glows').appendChild(d)});
+$('modes').innerHTML=Object.entries(MODES).map(([k,v])=>`<span data-m="${k}"><i style="background:${v.c}"></i>${k}</span>`).join('');
+
+/* ---------- geometry ---------- */
+let W,H,cx,cy,R,Ri,TL,RW,mobile;
+function layout(){
+  W=innerWidth;H=innerHeight;mobile=W<760;
+  // every ring has a fixed gap in units of u; measure the text once, then size u so the whole wheel fits
+  const css=document.documentElement.style;
+  const MF=0.0155, YF=0.017;
+  css.setProperty('--mfs',(100*MF)+'px'); css.setProperty('--yfs',(100*YF)+'px');
+  const mw=Math.max(...labels.map(l=>l.el.offsetWidth))/100, yw=Math.max(...yEls.map(y=>y.l.offsetWidth))/100;
+  const G={rw:0.25, ri:0.365, gapTxt:0.06, gapYear:0.075, yLab:0.028};
+  const ext = G.ri + 0.06 + G.gapTxt + mw + G.gapYear + G.yLab + yw;   // left reach from centre, per u
+  let u;
+  if(mobile){ u=Math.min((W-28)/(ext+G.rw+0.02), H*0.5); cx=14+ext*u; cy=Math.max(H*0.32, 0.62*u+60); }
+  else{
+    const sideW=380, gap=70;
+    // the round screen sits dead centre; the wheel and the side column size themselves around it
+    u=Math.min(H*1.0, (W/2-28)/ext, (W/2-48-260-gap)/(G.rw*1.1));
+    cx=W/2; cy=H*0.5;
+  }
+  RW=u*G.rw; Ri=u*G.ri; R=Ri+u*(0.06+G.gapTxt); TL=u*0.034;
+  css.setProperty('--mfs',(u*MF)+'px');
+  css.setProperty('--bd',(u*0.088)+'px');
+  css.setProperty('--rw',RW+'px');
+  css.setProperty('--yfs',(u*YF)+'px');
+  Object.assign($('display').style,{left:cx-RW+'px',top:cy-RW+'px',width:2*RW+'px',height:2*RW+'px'});
+  Object.assign($('glow').style,{left:cx-RW*2.4+'px',top:cy-RW*2.4+'px',width:RW*4.8+'px',height:RW*4.8+'px'});
+  const pr=$('prog'), PR=RW*1.075;
+  Object.assign(pr.style,{left:cx-PR-4+'px',top:cy-PR-4+'px',width:2*PR+8+'px',height:2*PR+8+'px'});
+  for(const c of [$('pTrack'),$('pBar')]){c.setAttribute('cx',PR+4);c.setAttribute('cy',PR+4);c.setAttribute('r',PR);}
+  $('pTrack').style.cssText='stroke:rgba(255,255,255,.16);stroke-width:2';
+  const circ=2*Math.PI*PR; $('pBar').style.cssText=`stroke:var(--c);stroke-width:2;stroke-dasharray:${circ};stroke-dashoffset:${circ};transform:rotate(-90deg);transform-origin:50% 50%;transition:stroke .6s`;
+  $('pBar').dataset.circ=circ;
+  const side=$('side');
+  if(mobile){ Object.assign(side.style,{left:'24px',right:'24px',top:(cy+RW*1.2+R*0.55)+'px',bottom:'auto',maxWidth:'none',transform:'none'}); }
+  else{ const L=cx+RW*1.1+70; Object.assign(side.style,{left:L+'px',right:'auto',width:Math.min(380,W-L-48)+'px',top:'50%',bottom:'auto',transform:'translateY(-50%)'}); }
+  Object.assign($('modes').style,{left:'28px',bottom:'58px'});
+  const bs=$('bootSvg'); if(bs){ Object.assign(bs.style,{left:cx-RW+'px',top:cy-RW+'px',width:2*RW+'px',height:2*RW+'px'});
+  const br=$('bootRing'); br.setAttribute('cx',RW);br.setAttribute('cy',RW);br.setAttribute('r',RW-1); }
+  labels.forEach(l=>{l.w=l.el.offsetWidth;l.h=l.el.offsetHeight}); MAXW=Math.max(...labels.map(l=>l.w));
+  RY=R+MAXW+u*G.gapYear; YLG=u*G.yLab; UU=u;
+  // focus view: a huge round screen, its left edge just inside the wheel
+  { const reach=RY+YLG+Math.max(...yEls.map(y=>y.l.offsetWidth))-RW;   // how far the wheel reaches left of the screen edge
+    RTF=mobile?Math.min(W*0.9,H*0.5):Math.max(H*0.82,RW*1.6); cxF=mobile?W/2:Math.min(28+reach+RTF, W*0.98+RTF*0.2); }
+  Object.assign($('yring').style,{left:cx-RY+'px',top:cy-RY+'px',width:2*RY+'px',height:2*RY+'px'});
+  render();
+}
+let MAXW=0,RY=0,YLG=0,UU=0,wasG=false,F=0,wasF=false,RTF=1,cxF=0,EXTL=0;
+
+/* ---------- render: one rigid wheel ---------- */
+let pos=0, g=0, intro=reduce?1:0;   // g: 0 = focus view, 1 = year view
+const wrap=d=>{d=((d%N)+N)%N;return d>=N/2?d-N:d}, clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(b-a)*t;
+function render(){
+  const kT=Math.min(0.9,(H*0.40-UU*0.04)/(R+MAXW)), dS=lerp(1,Math.min(1,kT/0.9),g);
+  const CX=lerp(cx,cxF,F), DL=F*(RTF-RW), sq=lerp(1,Ri/(Ri+RTF-RW),F);
+  const step=lerp(STEP_DEG,360/N,g)*sq, lim=lerp(lerp(5.2,4.6,F),60,g), k=lerp(1,kT,g), ky=lerp(1,((R+MAXW)*kT+UU*0.04)/RY,g);
+  { const dk=$('dock'), hw=(dk.offsetWidth||254)/2; dk.style.left=lerp(cx, W-28-hw, g)+'px'; dk.style.top=lerp(cy+RW*1.12+18, H-118, g)+'px'; }
+  if(F>0.001||wasF){ const sc=lerp(1,RTF/RW,F), t=`translate(${CX-cx}px,0px) scale(${sc})`; $('display').style.transform=F>0.001?t:''; $('glow').style.transform=F>0.001?t:''; } wasF=F>0.001;
+  if(g>0.001||wasG){ for(const id of ['display','prog','glow']) $(id).style.transform=g>0.001?`scale(${dS})`:''; } wasG=g>0.001;
+  const fade=d=>clamp(1-Math.pow(Math.abs(d)/lim,1.5),0,1)*intro;
+  const off=k=> g>0.001 ? wrap(k-pos) : k-pos;     // focus view: a line of events; year view: a full circle
+  const put=(el,r,d,extra)=>{const a=d*step*Math.PI/180;
+    el.style.transform=`translate(${CX-r*Math.cos(a)}px,${cy+r*Math.sin(a)}px) rotate(${-d*step*(1-g)}deg) ${extra}`;};
+  for(const t of ticks){
+    const d=off(t.k), a=d*step*Math.PI/180, r=(R+MAXW*0.5+TL*0.2)*k+DL;
+    t.el.style.width=TL+'px';
+    t.el.style.transform=`translate(${CX-r*Math.cos(a)}px,${cy+r*Math.sin(a)}px) rotate(${180-d*step}deg)`;
+    t.el.style.opacity=(fade(d)*0.8*(1-0.85*g)).toFixed(3);
+  }
+  for(const l of labels){
+    const d=off(l.k), e=lerp(Math.exp(-d*d/0.12),0.5,g), f=fade(d);
+    { // focus: inner edges line up along the radius; overview: every label sits the same distance outside the bubble ring
+      const aa=d*step*Math.PI/180, ov=R+6+Math.abs(Math.cos(aa))*l.w/2+Math.abs(Math.sin(aa))*l.h/2;
+      put(l.el,lerp(R+l.w/2,ov,g)*k+DL,d,'translate(-50%,-50%)'); }
+    l.el.style.opacity=(f*(0.5+0.5*e)).toFixed(3); l.el.style.visibility=f>0?'visible':'hidden';
+    l.el.style.fontWeight=e>0.9?500:400;
+  }
+  for(const it of items){
+    const d=off(it.k), e0=Math.exp(-d*d/0.5), e=lerp(e0,0.75,g), f=fade(d);
+    put(it.el,Ri*k+DL,d,`scale(${((0.8+0.3*e)*dS).toFixed(4)})`);
+    it.el.style.opacity=f.toFixed(3); it.el.style.visibility=f>0?'visible':'hidden';
+    it.el.style.filter=`saturate(${(0.35+0.65*e).toFixed(3)})`;
+    it.el.style.zIndex=Math.round(100*e0);
+    it.ring.style.setProperty('--ro',(e0*(1-g)).toFixed(3));
+  }
+  // year ring: its own gear in focus view, grouped over its events in year view
+  {const RR=RY+DL; Object.assign($('yring').style,{left:CX-RR+'px',top:cy-RR+'px',width:2*RR+'px',height:2*RR+'px'}); $('yring').style.transform=`scale(${(RY*ky+DL)/RR})`;} $('yring').style.setProperty('--ym',g.toFixed(3)); $('yring').style.transformOrigin='50% 50%';
+  for(const y of yEls){
+    const dF=(y.yi-yPos)*YSTEP*sq, dY=wrap(y.mid-pos)*step, deg=lerp(dF,dY,g);
+    const a=deg*Math.PI/180, rot=deg*(1-g);
+    const f=clamp(1-Math.pow(Math.abs(lerp(dF/(YSTEP*sq),0,g))/3.2,1.6),0,1)*intro;
+    const on=Math.exp(-Math.pow((y.yi-yPos),2)/0.08)*(1-g)+g*0.6;
+    const r=RY*ky+DL, rl=r+YLG;
+    y.d.style.transform=`translate(${CX-r*Math.cos(a)}px,${cy+r*Math.sin(a)}px)`;
+    y.d.style.background=on>0.7?'var(--c)':'rgba(255,255,255,.45)'; y.d.style.boxShadow=on>0.7?'0 0 10px var(--c)':'none';
+    y.d.style.opacity=f;
+    y.l.style.transform=`translate(${CX-rl*Math.cos(a)}px,${cy+rl*Math.sin(a)}px) rotate(${-rot}deg) translate(-100%,-50%)`;
+    if(g>0.5){ const lw=y.l.offsetWidth, lh=y.l.offsetHeight, ro=r+14+Math.abs(Math.cos(a))*lw/2+Math.abs(Math.sin(a))*lh/2; y.l.style.transform=`translate(${CX-ro*Math.cos(a)}px,${cy+ro*Math.sin(a)}px) translate(-50%,-50%)`; y.l.style.background='none'; y.l.style.padding='0'; }
+    else { y.l.style.background='none'; y.l.style.padding='0'; }
+    y.l.style.opacity=(f*(0.4+0.6*on)).toFixed(3); y.l.style.visibility=f>0?'visible':'hidden';
+  }
+  yDivs.forEach((v,i)=>{
+    const b=yEls[i+1].first-0.5, a=wrap(b-pos)*step*Math.PI/180, r=RY*ky-7;
+    v.style.transform=`translate(${CX-r*Math.cos(a)}px,${cy+r*Math.sin(a)}px) rotate(${180-wrap(b-pos)*step}deg)`;
+    v.style.opacity=g*intro;
+  });
+}
+
+/* ---------- motion ---------- */
+function bez(x1,y1,x2,y2){const cx_=3*x1,bx=3*(x2-x1)-cx_,ax=1-cx_-bx,cy_=3*y1,by=3*(y2-y1)-cy_,ay=1-cy_-by;
+  const X=t=>((ax*t+bx)*t+cx_)*t,Y=t=>((ay*t+by)*t+cy_)*t,dX=t=>(3*ax*t+2*bx)*t+cx_;
+  return x=>{let t=x;for(let i=0;i<7;i++){const d=dX(t);if(Math.abs(d)<1e-6)break;t-=(X(t)-x)/d}return Y(clamp(t,0,1))}}
+const SNAP=bez(.62,0,.1,1), SMOOTH=bez(.65,0,.25,1);
+let to=0, raf=0, cur=-1;
+function animateTo(target,dur=DUR,ease=SNAP){
+  const from=pos,t0=performance.now(); to=target; show(((to%N)+N)%N);
+  if(reduce){pos=to;render();return}
+  cancelAnimationFrame(raf);
+  const f=now=>{const p=clamp((now-t0)/dur,0,1);pos=from+(to-from)*ease(p);render();if(p<1)raf=requestAnimationFrame(f);else pos=to};
+  raf=requestAnimationFrame(f);
+}
+const step=dir=>{const t=Math.round(to)+dir; if(t<0||t>N-1) return animateTo(t<0?N-1:0,1500,SMOOTH); animateTo(t)};
+const goTo=i=>animateTo(i, Math.abs(i-pos)>3?900:DUR, Math.abs(i-pos)>3?SMOOTH:SNAP);
+let yRaf=0;
+function gearTo(yi){
+  const from=yPos; if(Math.abs(from-yi)<1e-3) return; const t0=performance.now()+90, dur=reduce?0:620; cancelAnimationFrame(yRaf);
+  const f=now=>{const p=dur?clamp((now-t0)/dur,0,1):1; yPos=from+(yi-from)*SNAP(p); render(); if(p<1) yRaf=requestAnimationFrame(f)};
+  yRaf=requestAnimationFrame(f);
+}
+function tweenG(target){
+  const from=g,t0=performance.now(),dur=reduce?0:900;
+  const f=now=>{const p=dur?clamp((now-t0)/dur,0,1):1;g=from+(target-from)*SMOOTH(p);render();if(p<1)requestAnimationFrame(f)};
+  requestAnimationFrame(f);
+}
+
+/* ---------- content ---------- */
+let kvFlip=false, swapT;
+function fill(i){
+  const e=EVENTS[i], m=MODES[e.mode];
+  $('dMode').textContent=e.mode;
+  $('dEye').textContent=e.city;
+  $('dTitle').textContent=e.title; $('dLine').textContent=e.line;
+  $('sEye').textContent=e.city; $('sTitle').textContent=e.title; $('sLine').textContent=e.line; $('sWhat').textContent=e.what; $('sWhy').textContent=e.why; document.querySelector('.why').style.display=e.why?'':'none'; $('sFor').textContent=e.forM; document.querySelector('.forM').style.display=e.forM?'':'none';
+  $('count').textContent=String(i+1).padStart(2,'0')+' / '+String(N).padStart(2,'0');
+}
+function show(i){
+  if(i===cur) return; const first=cur<0; cur=i;
+  const e=EVENTS[i], m=MODES[e.mode];
+  gearTo(YEARS.indexOf(e.year));
+  document.documentElement.style.setProperty('--c',m.c); document.documentElement.style.setProperty('--cg',m.g);
+  document.body.classList.toggle('isIntro',!!e.intro);
+  if(!first) tick();
+  document.querySelectorAll('#modes span').forEach(s=>s.classList.toggle('on',s.dataset.m===e.mode));
+  document.querySelectorAll('.cglow').forEach(g=>g.classList.toggle('on',g.dataset.m===e.mode));
+  const a=kvFlip?$('kvA'):$('kvB'), b=kvFlip?$('kvB'):$('kvA'); kvFlip=!kvFlip;
+  a.style.background=e.img?`url('${e.img}') center/cover`:m.kv; a.style.opacity=1; b.style.opacity=0;
+  $('kvLabel').style.display=e.img?'none':'';
+  if(open) buildSlides(i);
+  if(first){fill(i);return}
+  clearTimeout(swapT); $('dWrap').classList.add('out'); $('sWrap').classList.add('out');
+  swapT=setTimeout(()=>{fill(i);$('dWrap').classList.remove('out');$('sWrap').classList.remove('out')},reduce?0:200);
+}
+
+/* year view */
+let year=false;
+function setYear(on){
+  year=on; document.body.classList.toggle('yv',on); tweenG(on?1:0);
+  $('yearBtn').textContent=on?'Back to thrill':'See all thrills';
+  $('side').style.opacity=on?0:1; $('side').style.pointerEvents=on?'none':'';
+  $('side').style.transition='opacity .5s';
+  if(on){ clearTimeout(swapT); $('dWrap').classList.add('out');
+    swapT=setTimeout(()=>{$('dEye').textContent='MINI MORE';$('dTitle').textContent='Thrills';
+      $('dLine').textContent=EVENTS.filter(e=>!e.intro).length+' thrills in '+YEARS.length+' layers. Tap one to open it.';$('dWrap').classList.remove('out')},220);
+    $('dMode').textContent='Overview';
+  } else { const i=cur; cur=-2; show(i); }
+  if(on) document.body.classList.remove('isIntro');
+}
+function pick(i){ userAct(); if(year){setYear(false);$('dAll').classList.remove('on')} goTo(i); }
+$('yearBtn').onclick=()=>{if(open)return;userAct();setYear(!year)};
+
+/* ---------- input ---------- */
+let acc=0,last=0;
+addEventListener('wheel',e=>{e.preventDefault();if(year||open)return;userAct();const now=performance.now();acc+=e.deltaY;
+  if(Math.abs(acc)>40&&now-last>DUR*0.7){step(Math.sign(acc));acc=0;last=now}},{passive:false});
+addEventListener('keydown',e=>{
+  if(open){ if(e.key==='Escape')closeFocus(); else if(e.key==='ArrowLeft'){e.preventDefault();slideBy(-1)} else if(e.key==='ArrowRight'){e.preventDefault();slideBy(1)}
+    else if(['ArrowDown','PageDown'].includes(e.key)){e.preventDefault();step(1)} else if(['ArrowUp','PageUp'].includes(e.key)){e.preventDefault();step(-1)} return; }
+  if(year&&e.key!=='Escape')return;
+  if(['ArrowDown','ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();userAct();step(1)}
+  if(['ArrowUp','ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();userAct();step(-1)}
+  if(e.key==='Escape'&&year){setYear(false)}});
+let dy0=null; stage.addEventListener('pointerdown',e=>dy0=e.clientY);
+addEventListener('pointerup',e=>{if(dy0===null)return;const dy=e.clientY-dy0;dy0=null;if(!year&&Math.abs(dy)>30){userAct();step(dy<0?1:-1)}});
+$('next').onclick=()=>{userAct();step(1)}; $('prev').onclick=()=>{userAct();step(-1)};
+
+/* ---------- autoplay with progress ring ---------- */
+let auto=false,resumeT,hold0=0;
+let paused=false, open=false;
+function userAct(){auto=false;setBar(0);clearTimeout(resumeT);resumeT=setTimeout(()=>{auto=!year&&!paused&&!open;hold0=performance.now()},9000)}
+function setPaused(p){ paused=p; $('pp').classList.toggle('off',p);
+  $('ppIcon').innerHTML=p?'<path class="f" d="M8 5.5v13l11-6.5z"/>':'<rect x="6.5" y="5" width="3.6" height="14" rx="1.2" class="f"/><rect x="13.9" y="5" width="3.6" height="14" rx="1.2" class="f"/>';
+  $('pp').setAttribute('aria-label',p?'Play auto-play':'Pause auto-play'); $('ppLab').textContent=p?'Auto-play off':'Auto-play on';
+  if(p){auto=false;setBar(0);clearTimeout(resumeT)} else if(!open&&!year){auto=true;hold0=performance.now()} }
+$('pp').onclick=()=>setPaused(!paused);
+$('dAll').onclick=()=>{ if(open){closeFocus();setTimeout(()=>{userAct();setYear(true);$('dAll').classList.add('on')},500);return} userAct(); setYear(!year); $('dAll').classList.toggle('on',year); };
+$('dock').addEventListener('pointerdown',e=>e.stopPropagation());
+
+/* ---------- focus view ---------- */
+let slIdx=0, slN=1;
+function buildSlides(i){
+  const e=EVENTS[i], list=e.imgs||[e.img]; slN=list.length; slIdx=0;
+  $('slTrack').innerHTML=list.map((u,k)=>`<div class="sl ${k?'':'on'}" style="background-image:url('${u}')"></div>`).join('');
+  $('sDots').innerHTML=list.map((u,k)=>`<i class="${k?'':'on'}" data-k="${k}"></i>`).join('');
+  $('slides').classList.toggle('single',slN<2);
+  $('sDots').querySelectorAll('i').forEach(d=>d.onclick=ev=>{ev.stopPropagation();slideTo(+d.dataset.k)});
+}
+function slideTo(k){ slIdx=(k+slN)%slN;
+  $('slTrack').querySelectorAll('.sl').forEach((el,j)=>el.classList.toggle('on',j===slIdx));
+  $('sDots').querySelectorAll('i').forEach((el,j)=>el.classList.toggle('on',j===slIdx)); }
+const slideBy=d=>slideTo(slIdx+d);
+$('sPrev').onclick=ev=>{ev.stopPropagation();slideBy(-1)}; $('sNext').onclick=ev=>{ev.stopPropagation();slideBy(1)};
+function placeFocus(){
+  // the parts of the big circle that are on screen: put arrows, dots and text there
+  const L=cxF-RTF, D=2*RTF, sl=$('slides');
+  const fx=x=>((x-L)/D*100)+'%', fy=y=>((y-(cy-RTF))/D*100)+'%';
+  sl.querySelector('.sarr.l').style.left=fx(L+RTF*0.16); sl.querySelector('.sarr.r').style.left=fx(Math.min(W-90,cxF+RTF*0.6)); sl.querySelector('.sarr.r').style.right='auto';
+  sl.querySelector('.sarr.l').style.top=sl.querySelector('.sarr.r').style.top=fy(H*0.42);
+  const dt=$('sDots'); dt.style.top=fy(34); dt.style.bottom='auto'; dt.style.left=fx((Math.max(L,0)+W)/2);
+  $('fshade').style.clipPath=`circle(${RTF}px at ${cxF}px ${cy}px)`;
+  const sd=$('side'), SL=Math.max(L+RTF*0.32, L+120);
+  if(mobile){ sd.style.top=(cy+RTF*0.25)+'px'; }
+  else { sd.style.left=SL+'px'; sd.style.width=(W-SL-56)+'px'; sd.style.top='auto'; sd.style.bottom='56px'; sd.style.transform='none'; }
+}
+let fRaf=0;
+function tweenF(target,done){
+  const from=F,t0=performance.now(),dur=reduce?0:800; cancelAnimationFrame(fRaf);
+  const f=now=>{const p=dur?clamp((now-t0)/dur,0,1):1;F=from+(target-from)*SMOOTH(p);render();if(p<1)fRaf=requestAnimationFrame(f);else if(done)done()};
+  fRaf=requestAnimationFrame(f);
+}
+function openFocus(){
+  if(year||open||EVENTS[cur].intro) return;
+  open=true; auto=false; setBar(0); clearTimeout(resumeT);
+  buildSlides(cur); document.body.classList.add('open'); placeFocus(); tweenF(1);
+}
+function closeFocus(){
+  if(!open) return; open=false; document.body.classList.remove('open');
+  ['top','bottom','transform','width','left'].forEach(k=>$('side').style[k]=''); tweenF(0,()=>{layout()}); layout(); userAct();
+}
+$('display').addEventListener('click',()=>{ if(!open&&!year){userAct();openFocus()} });
+$('dim').onclick=closeFocus; $('fClose').onclick=closeFocus;
+let sx0=null; $('display').addEventListener('pointerdown',e=>{if(open)sx0=e.clientX});
+$('display').addEventListener('pointerup',e=>{if(!open||sx0===null)return;const dx=e.clientX-sx0;sx0=null;if(Math.abs(dx)>40)slideBy(dx<0?1:-1)});
+function setBar(p){const c=+$('pBar').dataset.circ;$('pBar').style.strokeDashoffset=c*(1-p)}
+(function loop(now){ if(auto&&!year&&!paused&&!open){const p=(now-hold0)/HOLD;setBar(clamp(p,0,1));if(p>=1){step(1);hold0=now+DUR}} requestAnimationFrame(loop)})(performance.now());
+
+
+/* ---------- click sound on every change ---------- */
+let AC=null;
+function unlockAudio(){ try{ if(!AC){AC=new (window.AudioContext||window.webkitAudioContext)()} if(AC.state==='suspended')AC.resume(); }catch(e){} }
+['pointerdown','keydown','wheel','touchstart'].forEach(t=>addEventListener(t,unlockAudio,{passive:true}));
+function tick(){
+  if(!AC||AC.state!=='running') return;
+  const t=AC.currentTime, len=Math.floor(AC.sampleRate*0.03), buf=AC.createBuffer(1,len,AC.sampleRate), d=buf.getChannelData(0);
+  for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*Math.pow(1-i/len,6);
+  const n=AC.createBufferSource(); n.buffer=buf;
+  const bp=AC.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=3200; bp.Q.value=1.4;
+  const o=AC.createOscillator(); o.type='sine'; o.frequency.setValueAtTime(1900,t); o.frequency.exponentialRampToValueAtTime(900,t+0.04);
+  const og=AC.createGain(); og.gain.setValueAtTime(0.12,t); og.gain.exponentialRampToValueAtTime(0.0001,t+0.05);
+  const g=AC.createGain(); g.gain.value=0.55;
+  n.connect(bp).connect(g); o.connect(og).connect(g); g.connect(AC.destination);
+  n.start(t); o.start(t); o.stop(t+0.06);
+}
+
+/* ---------- start-up: the screen wakes, the wheel rolls in ---------- */
+addEventListener('resize',()=>{layout(); if(open) placeFocus(); render();});
+layout();
+const startAt=0;  // first event shown (0 = January)
+pos=startAt-4; show(((startAt%N)+N)%N);
+(function boot(){
+  const disp=$('display'), ring=$('bootRing'), circ=2*Math.PI*(RW-1);
+  if(reduce){document.body.classList.add('ready');pos=startAt;intro=1;render();$('boot').remove();auto=true;return}
+  ring.style.strokeDasharray=circ; ring.style.strokeDashoffset=circ;
+  disp.style.opacity=0; disp.style.transform='scale(.92)';
+  const t0=performance.now();
+  const f=now=>{
+    const t=now-t0;
+    ring.style.strokeDashoffset=circ*(1-SMOOTH(clamp(t/1100,0,1)));
+    $('boot').style.opacity=1-clamp((t-1100)/400,0,1);
+    const d=SMOOTH(clamp((t-700)/800,0,1)); disp.style.opacity=d; disp.style.transform=`scale(${0.92+0.08*d})`;
+    if(t>900) document.body.classList.add('ready');
+    const w=clamp((t-1000)/1500,0,1); intro=SMOOTH(clamp((t-900)/700,0,1)); pos=startAt-4+4*SMOOTH(w); to=startAt; render();
+    if(t<2600) requestAnimationFrame(f); else {pos=startAt;render();$('boot').remove();disp.style.transform='';auto=!paused;hold0=performance.now()}
+  };
+  requestAnimationFrame(f);
+})();
+</script>
+</body>
+</html>
